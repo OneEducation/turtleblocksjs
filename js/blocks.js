@@ -1,3 +1,14 @@
+// Copyright (c) 2014 Walter Bender
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or
+// (at your option) any later version.
+//
+// You should have received a copy of the GNU General Public License
+// along with this library; if not, write to the Free Software
+// Foundation, 51 Franklin Street, Suite 500 Boston, MA 02110-1335 USA
+
 // All things related to blocks and palettes
 
 // Define palette objects
@@ -17,8 +28,8 @@ var paletteList = [];
 
 var turtlePalette = new Palette('turtle');
 paletteList.push(turtlePalette);
-turtlePalette.color = 'white';
-turtlePalette.backgroundColor = 'green';
+turtlePalette.color = 'black';
+turtlePalette.backgroundColor =  '#00ff00';
 
 var penPalette = new Palette('pen');
 paletteList.push(penPalette);
@@ -27,8 +38,8 @@ penPalette.backgroundColor = 'cyan';
 
 var numberPalette = new Palette('number');
 paletteList.push(numberPalette);
-numberPalette.color = 'white';
-numberPalette.backgroundColor = 'purple';
+numberPalette.color = 'black';
+numberPalette.backgroundColor =  '#ff00ff';
 
 var flowPalette = new Palette('flow');
 paletteList.push(flowPalette);
@@ -149,6 +160,45 @@ penPalette.blockList.push(colorBlock);
 colorBlock.style = 'arg';
 colorBlock.docks = [[0, 20, 'numberout']];
 
+var setpensizeBlock = new ProtoBlock('setpensize');
+protoBlockList.push(setpensizeBlock);
+setpensizeBlock.palette = penPalette;
+penPalette.blockList.push(setpensizeBlock);
+setpensizeBlock.args = 1;
+setpensizeBlock.defaults.push(0);
+setpensizeBlock.docks = [[20, 0, 'out'], [98, 20, 'numberin'], [20, 42, 'in']];
+
+var pensizeBlock = new ProtoBlock('pensize');
+protoBlockList.push(pensizeBlock);
+pensizeBlock.palette = penPalette;
+penPalette.blockList.push(pensizeBlock);
+pensizeBlock.style = 'arg';
+pensizeBlock.docks = [[0, 20, 'numberout']];
+
+var penupBlock = new ProtoBlock('penup');
+protoBlockList.push(penupBlock);
+penupBlock.palette = penPalette;
+penPalette.blockList.push(penupBlock);
+penupBlock.docks = [[20, 0, 'out'], [20, 42, 'in']];
+
+var pendownBlock = new ProtoBlock('pendown');
+protoBlockList.push(pendownBlock);
+pendownBlock.palette = penPalette;
+penPalette.blockList.push(pendownBlock);
+pendownBlock.docks = [[20, 0, 'out'], [20, 42, 'in']];
+
+var startfillBlock = new ProtoBlock('beginfill');
+protoBlockList.push(startfillBlock);
+startfillBlock.palette = penPalette;
+penPalette.blockList.push(startfillBlock);
+startfillBlock.docks = [[20, 0, 'out'], [20, 42, 'in']];
+
+var endfillBlock = new ProtoBlock('endfill');
+protoBlockList.push(endfillBlock);
+endfillBlock.palette = penPalette;
+penPalette.blockList.push(endfillBlock);
+endfillBlock.docks = [[20, 0, 'out'], [20, 42, 'in']];
+
 // Numbers palette
 var numberBlock = new ProtoBlock('number');
 protoBlockList.push(numberBlock);
@@ -170,6 +220,19 @@ plusBlock.args = 2;
 plusBlock.docks = [[0, 20, 'numberout'], [68, 20, 'numberin'],
 		   [68, 62, 'numberin']];
 
+var minusBlock = new ProtoBlock('minus');
+protoBlockList.push(minusBlock);
+minusBlock.palette = numberPalette;
+numberPalette.blockList.push(minusBlock);
+minusBlock.yoff = 49;
+minusBlock.loff = 42;
+minusBlock.expandable = true;
+minusBlock.style = 'arg';
+minusBlock.size = 2;
+minusBlock.args = 2;
+minusBlock.docks = [[0, 20, 'numberout'], [68, 20, 'numberin'],
+		   [68, 62, 'numberin']];
+
 var greaterBlock = new ProtoBlock('greater');
 protoBlockList.push(greaterBlock);
 greaterBlock.palette = numberPalette;
@@ -188,50 +251,102 @@ blocksPalette.blockList.push(textBlock);
 textBlock.style = 'value';
 textBlock.docks = [[0, 20, 'textout']];
 
-var boxBlock = new ProtoBlock('box');
-protoBlockList.push(boxBlock);
-boxBlock.palette = blocksPalette;
-blocksPalette.blockList.push(boxBlock);
-boxBlock.args = 1;
-boxBlock.defaults.push('box');
-boxBlock.style = 'arg';
-boxBlock.docks = [[0, 20, 'numberout'], [68, 20, 'textin']];
-
 var storeinBlock = new ProtoBlock('storein');
 protoBlockList.push(storeinBlock);
 storeinBlock.palette = blocksPalette;
-blocksPalette.blockList.push(storeinBlock);
 storeinBlock.yoff = 49;
 storeinBlock.loff = 42;
 storeinBlock.expandable = true;
 storeinBlock.style = 'special';
 storeinBlock.size = 2;
 storeinBlock.args = 2;
-storeinBlock.defaults.push('box');
-storeinBlock.defaults.push(100);
 storeinBlock.docks = [[20, 0, 'out'], [98, 20, 'textin'],
-		      [98, 62, 'numberin'], [20, 84, 'in']];
+			[98, 62, 'numberin'], [20, 84, 'in']];
 
-var runBlock = new ProtoBlock('run');
-protoBlockList.push(runBlock);
-runBlock.palette = blocksPalette;
-blocksPalette.blockList.push(runBlock);
-runBlock.args = 1;
-runBlock.defaults.push('action');
-runBlock.docks = [[20, 0, 'out'], [98, 20, 'textin'], [20, 42, 'in']];
+function newStoreinBlock(name) {
+    var myStoreinBlock = new ProtoBlock('storein');
+    protoBlockList.push(myStoreinBlock);
+    myStoreinBlock.palette = blocksPalette;
+    blocksPalette.blockList.push(myStoreinBlock);
+    myStoreinBlock.yoff = 49;
+    myStoreinBlock.loff = 42;
+    myStoreinBlock.expandable = true;
+    myStoreinBlock.style = 'special';
+    myStoreinBlock.size = 2;
+    myStoreinBlock.args = 2;
+    myStoreinBlock.defaults.push(name);
+    myStoreinBlock.defaults.push(100);
+    myStoreinBlock.docks = [[20, 0, 'out'], [98, 20, 'textin'],
+			  [98, 62, 'numberin'], [20, 84, 'in']];
+}
+
+newStoreinBlock('box');
+
+var boxBlock = new ProtoBlock('box');
+protoBlockList.push(boxBlock);
+boxBlock.palette = blocksPalette;
+boxBlock.args = 1;
+boxBlock.style = 'arg';
+boxBlock.docks = [[0, 20, 'numberout'], [68, 20, 'textin']];
+
+function newBoxBlock(name) {
+    var myBoxBlock = new ProtoBlock('box');
+    protoBlockList.push(myBoxBlock);
+    myBoxBlock.palette = blocksPalette;
+    blocksPalette.blockList.push(myBoxBlock);
+    myBoxBlock.args = 1;
+    myBoxBlock.defaults.push(name);
+    myBoxBlock.style = 'arg';
+    myBoxBlock.docks = [[0, 20, 'numberout'], [68, 20, 'textin']];
+}
+
+newBoxBlock('box');
 
 var actionBlock = new ProtoBlock('action');
 protoBlockList.push(actionBlock);
 actionBlock.palette = blocksPalette;
-blocksPalette.blockList.push(actionBlock);
 actionBlock.yoff = 86;
 actionBlock.loff = 42;
 actionBlock.args = 1;
-actionBlock.defaults.push('action');
 actionBlock.expandable = true;
 actionBlock.style = 'clamp';
 actionBlock.docks = [[20, 0, 'unavailable'], [98, 34, 'textin'],
 		     [38, 55, 'in'], [20, 80, 'unavailable']];
+
+function newActionBlock(name) {
+    var myActionBlock = new ProtoBlock('action');
+    protoBlockList.push(myActionBlock);
+    myActionBlock.palette = blocksPalette;
+    blocksPalette.blockList.push(myActionBlock);
+    myActionBlock.yoff = 86;
+    myActionBlock.loff = 42;
+    myActionBlock.args = 1;
+    myActionBlock.defaults.push(name);
+    myActionBlock.expandable = true;
+    myActionBlock.style = 'clamp';
+    myActionBlock.docks = [[20, 0, 'unavailable'], [98, 34, 'textin'],
+			 [38, 55, 'in'], [20, 80, 'unavailable']];
+}
+
+newActionBlock('action');
+
+var doBlock = new ProtoBlock('do');
+protoBlockList.push(doBlock);
+doBlock.palette = blocksPalette;
+doBlock.args = 1;
+doBlock.docks = [[20, 0, 'out'], [98, 20, 'textin'], [20, 42, 'in']];
+
+function newDoBlock(name) {
+    var myDoBlock = new ProtoBlock('do');
+    protoBlockList.push(myDoBlock);
+    myDoBlock.palette = blocksPalette;
+    blocksPalette.blockList.push(myDoBlock);
+    myDoBlock.args = 1;
+    myDoBlock.defaults.push(name);
+    myDoBlock.docks = [[20, 0, 'out'], [98, 20, 'textin'], [20, 42, 'in']];
+}
+
+newDoBlock('action');
 
 var startBlock = new ProtoBlock('start');
 protoBlockList.push(startBlock);
@@ -423,9 +538,6 @@ function getBlockId(blk) {
 
 // Toggle which palette is visible, updating button colors
 function toggle(name) {
-    // TODO: change color of buttons and button backgrounds
-    // refactor to generate Ids on the fly from palette name
-
     var palette = Number(name);
     var paletteButtonId = getPaletteButtonId(palette);
     var paletteId = getPaletteId(palette);
@@ -452,24 +564,46 @@ function toggler(obj) {
 function updatePalettes() {
     // Modify the header id with palette info.
     var html = ''
-    var text = ''
     for (var palette = 0; palette < paletteList.length; palette++) {
-	text = '<button id="' + getPaletteButtonId(palette) + '" ' +
+	var text = '<button id="' + getPaletteButtonId(palette) + '" ' +
 	    'onclick="return toggle(\'' + palette + // getPaletteId(palette) +
 	    '\');">' + paletteList[palette].name + '</button>';
 	html = html + text;
     }
 
     for (var palette = 0; palette < paletteList.length; palette++) {
-	text = '<div id="' + getPaletteId(palette) + '">';
+	var myPalette = paletteList[palette];
+	var text = '<div id="' + getPaletteId(palette) + '">';
 	html = html + text;
-	for (var blk = 0; blk < paletteList[palette].blockList.length; blk++) {
+	for (var blk = 0; blk < myPalette.blockList.length; blk++) {
+	    // Special case for do block
+	    var name = myPalette.blockList[blk].name;
+	    var arg = '__NOARG__';
+	    switch (name) {
+	    case 'do':
+		// Use the name of the action in the label
+		name = 'do ' + myPalette.blockList[blk].defaults[0];
+		// Call makeBlock with the name of the action
+		var arg = myPalette.blockList[blk].defaults[0];
+		break;
+	    case 'storein':
+		// Use the name of the box in the label
+		name = 'store in ' + myPalette.blockList[blk].defaults[0];
+		var arg = myPalette.blockList[blk].defaults[0];
+		break;
+	    case 'box':
+		// Use the name of the box in the label
+		name = myPalette.blockList[blk].defaults[0];
+		var arg = myPalette.blockList[blk].defaults[0];
+		break;
+	    }
 	    text = '<button id="' + 
 		getBlockButtonId(palette, blk) + '"' +
-		' class="' + paletteList[palette].backgroundColor + '"' + 
+		// ' class="' + myPalette.backgroundColor + '"' + 
+		' class="' + myPalette.name + '"' + 
 		' onclick="return makeBlock(\'' +
-		paletteList[palette].blockList[blk].name + '\');">' +
-		paletteList[palette].blockList[blk].name + '</button>';
+		myPalette.blockList[blk].name + '\', \'' + arg + '\');">' +
+		name + '</button>';
 	    html = html + text;
 	}
 	text = '</div>';
@@ -478,39 +612,59 @@ function updatePalettes() {
     paletteElem.innerHTML = html;
 
     // Open the turtle palette to start
-    toggle('0');
+    toggle(currentPalette.toString());
     // and hide all the others
-    for (var palette = 1; palette < paletteList.length; palette++) {
-	toggler(getPaletteId(palette));
+    for (var palette = 0; palette < paletteList.length; palette++) {
+	if (palette != currentPalette) {
+	    toggler(getPaletteId(palette));
+	}
     }
 }
 
-function makeBlock(name) {
-    for (proto=0; proto < protoBlockList.length; proto++) {
+function makeBlock(name, arg) {
+    // Make a new block from a proto block.
+    for (var proto=0; proto < protoBlockList.length; proto++) {
 	if (protoBlockList[proto].name == name) {
-	    blockList.push(new Block(protoBlockList[proto]));
-	    break;
+	    if (arg == '__NOARG__') {
+		blockList.push(new Block(protoBlockList[proto]));
+		break;
+	    } else {
+		if (protoBlockList[proto].defaults[0] == arg) {
+		    blockList.push(new Block(protoBlockList[proto]));
+		    break;
+		}
+	    }
 	}
     }
-    blk = blockList.length - 1;
-    blockList[blk].copyDocks();
-    for (i = 0; i < blockList[blk].docks.length; i++) {
-	blockList[blk].connections.push(null);
+    var blk = blockList.length - 1;
+    var myBlock = blockList[blk];
+    myBlock.copyDocks();
+    for (var i = 0; i < myBlock.docks.length; i++) {
+	myBlock.connections.push(null);
     }
 
     // Attach default args if any
-    cblk = blk + 1;
-    for (i = 0; i < blockList[blk].protoblock.defaults.length; i++) {
-	var value = blockList[blk].protoblock.defaults[i];
-	if (blockList[blk].docks[i + 1][2] == 'textin') {
+    var cblk = blk + 1;
+    for (var i = 0; i < myBlock.protoblock.defaults.length; i++) {
+	var value = myBlock.protoblock.defaults[i];
+	if (myBlock.docks[i + 1][2] == 'textin') {
 	    blockList.push(new Block(textBlock));
 	} else {
 	    blockList.push(new Block(numberBlock));
 	}
-	blockList[cblk + i].copyDocks();
-	blockList[cblk + i].connections = [blk];
-	blockList[cblk + i].value = value;
-	blockList[blk].connections[i + 1] = cblk + i;
+	var myConnectionBlock = blockList[cblk + i];
+	myConnectionBlock.copyDocks();
+	myConnectionBlock.connections = [blk];
+	if (myBlock.name == 'action') {
+	    // Make sure we don't make two actions with the same name.
+	    value = findUniqueActionName('action');
+	    if (value != 'action') {
+		newDoBlock(value);
+		updatePalettes();
+	    }
+	}
+	myConnectionBlock.value = value;
+	myBlock.connections[i + 1] = cblk + i;
     }
 
     // Generate and position the block bitmaps and labels
@@ -518,108 +672,31 @@ function makeBlock(name) {
     adjuster(blk);
 }
 
-// The modifiable labels are stored in the DOM with a
-// unique id for each block.  For the moment, we only have
-// labels for number and text blocks.
-function updateBlockLabels() {
-    var html = ''
-    var text = ''
-    var value = ''
+function findUniqueActionName(name) {
+    // Make sure we don't make two actions with the same name.
+    var actionNames = [];
     for (var blk = 0; blk < blockList.length; blk++) {
-	if (blockList[blk].name == 'number') {
-	    if (blockList[blk].label == null) {
-		if (blockList[blk].value == null) {
-		    blockList[blk].value = 100;
-		}
-		value = blockList[blk].value.toString();
-	    } else {
-		value = blockList[blk].label.value;
+	if (blockList[blk].name == 'text') {
+	    var c = blockList[blk].connections[0];
+	    if (c != null && blockList[c].name == 'action') {
+		actionNames.push(blockList[blk].value);
 	    }
-	    text = '<textarea id="' + getBlockId(blk) +
-		'" style="position: absolute; ' + 
-		'-webkit-user-select: text;" ' +
-		'class="number", ' +
-		'cols="6", rows="1", maxlength="6">' +
-		value + '</textarea>'
-	} else if (blockList[blk].name == 'text') {
-	    if (blockList[blk].label == null) {
-		if (blockList[blk].value == null) {
-		    blockList[blk].value = 'text';
-		}
-		value = blockList[blk].value;
-	    } else {
-		value = blockList[blk].label.value;
-	    }
-	    text = '<textarea id="' + getBlockId(blk) +
-		'" style="position: absolute; ' + 
-		'-webkit-user-select: text;" ' +
-		'class="text", ' +
-		'cols="6", rows="1", maxlength="6">' +
-		value + '</textarea>'
-	} else {
-	    text = ''
-	}
-	html = html + text
-    }
-    labelElem.innerHTML = html;
-
-    // Then create a list of the label elements
-    for (var blk = 0; blk < blockList.length; blk++) {
-	var myBlock = blockList[blk];
-	if (myBlock.bitmap == null) {
-	    var x = myBlock.x
-	    var y = myBlock.y
-	} else {
-	    var x = myBlock.bitmap.x
-	    var y = myBlock.bitmap.y
-	}
-	if (isValueBlock(blk)) {
-	    myBlock.label = document.getElementById(getBlockId(blk));
-	    myBlock.label.addEventListener('change', function() {
-		labelChanged(myBlock);
-	    });
-	    adjustLabelPosition(blk, x, y);
-	} else {
-	    myBlock.label = null;
 	}
     }
-}
-
-function labelChanged(block) {
-    // Update the block values as they change in the DOM label
-    if (block.label != null) {
-	console.log(block.label.value);
-	block.value = block.label.value;
+    var i = 1;
+    var value = name;
+    while (actionNames.indexOf(value) != -1) {
+	value = name + i.toString();
+	i += 1;
     }
-    // If the label was the name of an action, update the
-    // associated run blocks and the palette buttons
-
-    // If the label was the name of a storein, update the
-    //associated box blocks and the palette buttons
-
-}
-
-function adjustLabelPosition(canvas, blk, x, y) {
-    // Move the label when the block moves.
-    if (blockList[blk].label == null) {
-	return;
-    }
-    if (blockList[blk].protoblock.name == 'number') {
-	blockList[blk].label.style.left = Math.round(
-	    x + canvas.offsetLeft + 30) + 'px';
-    } else if (blockList[blk].protoblock.name == 'text') {
-	blockList[blk].label.style.left = Math.round(
-	    x + canvas.offsetLeft + 30) + 'px';
-    } else {
-	blockList[blk].label.style.left = Math.round(
-	    x + canvas.offsetLeft + 10) + 'px';
-    }
-    blockList[blk].label.style.top = Math.round(
-	y + canvas.offsetTop + 5) + 'px';
+    return value;
 }
 
 // Utility functions
 function isValueBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (valueBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
@@ -628,6 +705,9 @@ function isValueBlock(blk) {
 }
 
 function isArgBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (argBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
@@ -636,6 +716,9 @@ function isArgBlock(blk) {
 }
 
 function isSpecialBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (specialBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
@@ -644,6 +727,9 @@ function isSpecialBlock(blk) {
 }
 
 function isClampBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (clampBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
@@ -652,6 +738,9 @@ function isClampBlock(blk) {
 }
 
 function isNoRunBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (noRunBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
@@ -660,9 +749,97 @@ function isNoRunBlock(blk) {
 }
 
 function isExpandableBlock(blk) {
+    if (blk == null) {
+	return false;
+    }
     if (expandableBlocks.indexOf(blockList[blk].name) != -1) {
 	return true;
     } else {
 	return false;
+    }
+}
+
+function labelClicked(block) {
+    console.log('clicked on ' + block.name);
+}
+
+function labelChanged() {
+    // Update the block values as they change in the DOM label
+
+    // For some reason, arg passing from the DOM is not working
+    // properly, so we need to find the label that changed.
+    var myBlock = null;
+    var oldValue = '';
+    var newValue = '';
+    for (var blk = 0 ; blk < blockList.length ; blk++) {
+	if (blockList[blk].name == 'text') {
+	    if (blockList[blk].value != blockList[blk].label.value) {
+		myBlock = blockList[blk];
+		oldValue = myBlock.value;
+		newValue = myBlock.label.value;
+		break;
+	    }
+	}
+    }
+
+    // Update the label.
+    if (myBlock != null && myBlock.label != null) {
+	myBlock.value = myBlock.label.value;
+    }
+
+    // TODO: Garbage collection in palette (remove old proto block)
+    // TODO: Don't allow duplicate action names
+    var c = myBlock.connections[0];
+    if (myBlock.name == 'text' && c != null) {
+	var cblock = blockList[c];
+	switch (cblock.name) {
+	case 'action':
+	    // If the label was the name of an action, update the
+	    // associated run blocks and the palette buttons
+	    if (myBlock.value != 'action') {
+		newDoBlock(myBlock.value);
+	    }
+	    renameDos(oldValue, newValue);
+	    updatePalettes();
+	    break;
+	case 'storein':
+	    // If the label was the name of a storein, update the
+	    //associated box blocks and the palette buttons
+	    if (myBlock.value != 'box') {
+		newStoreinBlock(myBlock.value);
+		newBoxBlock(myBlock.value);
+	    }
+	    renameBoxes(oldValue, newValue);
+	    updatePalettes();
+	    break;
+	}
+    }
+}
+
+function renameBoxes(oldName, newName) {
+    for (blk = 0; blk < blockList.length; blk++) {
+	if (blockList[blk].name == 'text') {
+	    var c = blockList[blk].connections[0];
+	    if (c != null && blockList[c].name == 'box') {
+		if (blockList[blk].value == oldName) {
+		    blockList[blk].value = newName;
+		    blockList[blk].label.value = newName;
+		}
+	    }
+	}
+    }
+}
+
+function renameDos(oldName, newName) {
+    for (blk = 0; blk < blockList.length; blk++) {
+	if (blockList[blk].name == 'text') {
+	    var c = blockList[blk].connections[0];
+	    if (c != null && blockList[c].name == 'do') {
+		if (blockList[blk].value == oldName) {
+		    blockList[blk].value = newName;
+		    blockList[blk].label.value = newName;
+		}
+	    }
+	}
     }
 }

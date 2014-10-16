@@ -14,19 +14,30 @@
 <body>
     <div id="main-toolbar" class="toolbar">
         <button class="toolbutton" id="activity-button" title="My Activity"></button>
-        <button class="toolbutton" id="new-button" title="New"></button>
+        <button class="toolbutton" id="fast-button" title="Fast"></button>
+        <button class="toolbutton" id="slow-button" title="Slow"></button>
+        <button class="toolbutton" id="block-button" title="Hide/Show Blocks"></button>
+        <button class="toolbutton" id="clear-button" title="Erase"></button>
+        <button class="toolbutton" id="cartesian-button" title="Cartesian Grid"></button>
+        <button class="toolbutton" id="polar-button" title="Polar Grid"></button>
+	<button class="toolbutton" id="open-button" title="Open"></button>
+	<button class="toolbutton" id="save-button" title="Save"></button>
         <button class="toolbutton pull-right" id="stop-button" title="Stop"></button>
     </div>
 
     <div id="loader"></div>
 
     <div id="header" class="EaselJS">
-        <h1>Make stacks of blocks; click on the star to run them.</h1>
+        <h1>Make stacks of blocks; click on the rabbit to run them.</h1>
     </div>
 
     <div class="canvasHolder">
         <canvas id="myCanvas" width="1200" height="900"></canvas>
 	<div id="labelDiv"></div>
+	<div id="ioDiv">
+          <input class="file" type="file" id="myOpenFile" accept=".ta, .tb"/>
+	  <input class="file" type="file" id="mySaveFile" accept=".ta, .tb" nwsaveas="turtle-project.tb" />
+	</div>
     </div>
 </body>
 </html>

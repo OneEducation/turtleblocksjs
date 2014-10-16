@@ -34,10 +34,70 @@ define(function (require) {
             icon.colorize(activityButton, colors);
         });
 
-        var newButton = document.getElementById('new-button');
-        newButton.onclick = function () {
+	var turtle_delay = 1000;
+
+        var fastButton = document.getElementById('fast-button');
+        fastButton.onclick = function () {
+	    turtle_delay = 0;
 	    runLogoCommands();
         }
+
+        var slowButton = document.getElementById('slow-button');
+        slowButton.onclick = function () {
+	    turtle_delay = 1000;
+	    runLogoCommands();
+        }
+
+	var blocksVisible = true;
+        var blockButton = document.getElementById('block-button');
+        blockButton.onclick = function () {
+	    if (blocksVisible) {
+		hideBlocks();
+		blocksVisible = false;
+	    } else {
+		showBlocks();
+		blocksVisible = true;
+	    }
+        }
+
+        var clearButton = document.getElementById('clear-button');
+        clearButton.onclick = function () {
+	    doClear();
+	}
+
+	var cartesianVisible = false;
+        var cartesianButton = document.getElementById('cartesian-button');
+        cartesianButton.onclick = function () {
+	    if (cartesianVisible) {
+		hideCartesian();
+		cartesianVisible = false;
+	    } else {
+		showCartesian();
+		cartesianVisible = true;
+	    }
+        }
+
+	var polarVisible = false;
+        var polarButton = document.getElementById('polar-button');
+        polarButton.onclick = function () {
+	    if (polarVisible) {
+		hidePolar();
+		polarVisible = false;
+	    } else {
+		showPolar();
+		polarVisible = true;
+	    }
+        }
+
+        var openButton = document.getElementById('open-button');
+        openButton.onclick = function () {
+	    doOpen();
+	}
+
+        var saveButton = document.getElementById('save-button');
+        saveButton.onclick = function () {
+	    doSave();
+	}
 
         // Make the activity stop with the stop button.
         var stopButton = document.getElementById('stop-button');
@@ -86,11 +146,29 @@ define(function (require) {
 	// To avoid infinite loops
 	var loopCounter;
 
+	// Queue for loops
+	var runQueue = [];
+	var countQueue = [];
+
+	// Highlighted block
+	var highlightedBlock = null;
+
 	var activeBlock = null;
 
-	var turtle_delay = 1000;
-        var turtle_bitmap = null
+	// Coordinate grid
+        var cartesianBitmap = null;
+        var Cartesian = 'images/Cartesian.svg';
+
+	// Polar grid
+        var polarBitmap = null;
+        var Polar = 'images/polar.svg';
+
+	// Turtle sprite
+        var turtleBitmap = null;
         var Turtle = 'images/turtle.svg';
+
+	var filling = false;
+	var penState = true;
 	var turtleOrientation = 0.0;
 	var turtleColor = 0;
 	var turtleStroke = 5;
@@ -113,6 +191,23 @@ define(function (require) {
             // Create the stage and point it to the canvas.
             // canvas = document.getElementById('myCanvas');
 
+            // Check to see if we are running in a browser with touch support.
+            stage = new createjs.Stage(canvas);
+            // Enable touch interactions if supported on the current device.
+            createjs.Touch.enable(stage);
+            // Keep tracking the mouse even when it leaves the canvas.
+            stage.mouseMoveOutside = true;
+            // Enabled mouse over and mouse out events.
+            stage.enableMouseOver(10);
+
+	    var cartesian = new Image();
+	    cartesian.src = Cartesian;
+	    cartesian.onload = handleCartesianGridLoad;
+
+	    var polar = new Image();
+	    polar.src = Polar;
+	    polar.onload = handlePolarGridLoad;
+
 	    // Load a project.
 	    loadStart();
 
@@ -123,16 +218,7 @@ define(function (require) {
 		adjustBlockPositions();
 	    }
 
-            // Check to see if we are running in a browser with touch support.
-            stage = new createjs.Stage(canvas);
-            // Enable touch interactions if supported on the current device.
-            createjs.Touch.enable(stage);
-            // Keep tracking the mouse even when it leaves the canvas.
-            stage.mouseMoveOutside = true;
-            // Enabled mouse over and mouse out events.
-            stage.enableMouseOver(10);
-
-	    turtle = new Image();
+	    var turtle = new Image();
 	    turtle.src = Turtle;
 	    turtle.onload = handleTurtleLoad;
 
@@ -155,7 +241,7 @@ define(function (require) {
             var container = new createjs.Container();
             stage.addChild(container);
 
-	    var thisBlock = -1
+	    var thisBlock = -1;
             for (var blk = 0; blk < blockList.length; blk++) {
 		if (blockList[blk].image == image) {
 		    thisBlock = blk;
@@ -172,7 +258,7 @@ define(function (require) {
 	    bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1;
 	    bitmap.name = 'bmp_' + thisBlock;
 	    bitmap.cursor = 'pointer';
-	    adjustLabelPosition(canvas, thisBlock, bitmap.x, bitmap.y);
+	    adjustLabelPosition(thisBlock, bitmap.x, bitmap.y);
 
 	    // Expandable blocks have some extra parts.
 	    if (isExpandableBlock(thisBlock)) {
@@ -180,19 +266,23 @@ define(function (require) {
 		blockList[thisBlock].myContainer = container;
 
 		var yoff = blockList[thisBlock].protoblock.yoff;
-		blockList[thisBlock].filler_bitmaps = [];
-		blockList[thisBlock].bottom_bitmap = null;
-		var bottom_bitmap = new createjs.Bitmap(blockList[thisBlock].bottom_image);
-		blockList[thisBlock].bottom_bitmap = bottom_bitmap;
-		container.addChild(bottom_bitmap);
-		bottom_bitmap.x = bitmap.x;
-		bottom_bitmap.y = bitmap.y + yoff;
-		bottom_bitmap.scaleX = bottom_bitmap.scaleY = bottom_bitmap.scale = 1;
-		bottom_bitmap.name = 'bmp_' + thisBlock + '_bottom';
+		blockList[thisBlock].fillerBitmaps = [];
+		blockList[thisBlock].bottomBitmap = null;
+		var bottomBitmap =
+		    new createjs.Bitmap(blockList[thisBlock].bottom_image);
+		blockList[thisBlock].bottomBitmap = bottomBitmap;
+		container.addChild(bottomBitmap);
+		bottomBitmap.x = bitmap.x;
+		bottomBitmap.y = bitmap.y + yoff;
+		bottomBitmap.scaleX = 1;
+		bottomBitmap.scaleY = 1;
+		bottomBitmap.scale = 1;
+		bottomBitmap.name = 'bmp_' + thisBlock + '_bottom';
 	    }
 
             // Create a shape that represents the center of the icon.
             var hitArea = new createjs.Shape();
+
             // Position hitArea relative to the internal coordinate system
             // of the target (bitmap instances):
 	    // * number and text blocks have a handle on the right side;
@@ -211,7 +301,7 @@ define(function (require) {
 
             // Wrapper function to provide scope for the event handlers.
             (function (target) {
-		var moved = false
+		var moved = false;
 		bitmap.addEventListener('click', handleClick);
 		bitmap.addEventListener('mousedown', handleMouseDown);
 		bitmap.addEventListener('mouseover', handleMouseOver);
@@ -221,6 +311,8 @@ define(function (require) {
 		    if (!moved) {
 			// TODO: run block on click
 			console.log('click');
+			var topBlock = findTopBlock(thisBlock);
+			runLogoCommands(topBlock);
 		    }
 		}
 
@@ -241,7 +333,7 @@ define(function (require) {
 		    // TODO: Use pressmove, pressup??
 		    function handleMouseMove(event) {
 			// reset scale when moving (easier to dock that way)
-			bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1;
+			unhighlight();
 
 			moved = true;
 			var oldX = bitmap.x;
@@ -267,13 +359,13 @@ define(function (require) {
 			}
 
 			// Move the label.
-			adjustLabelPosition(canvas, thisBlock, bitmap.x, bitmap.y);
+			adjustLabelPosition(thisBlock, bitmap.x, bitmap.y);
 
 			// Move any connected blocks.
 			findDragGroup(blk)
 			if (dragGroup.length > 0) {
 			    for (var b = 0; b < dragGroup.length; b++) {
-				blk = dragGroup[b]
+				blk = dragGroup[b];
 				if (b != 0) {
 				    moveBlockRelative(blk, dx, dy);
 				}
@@ -288,7 +380,7 @@ define(function (require) {
 
 		function handleMouseOver(event) {
 		    if (activeBlock == null) {
-			target.scaleX = target.scaleY = target.scale * 1.2;
+			highlight(thisBlock);
 			activeBlock = thisBlock;
 			update = true;
 		    }
@@ -325,9 +417,10 @@ define(function (require) {
 			    blockList[thisBlock].docks[0][0];
 			var dy1 = blockList[thisBlock].bitmap.y + 
 			    blockList[thisBlock].docks[0][1];
-			// Find the nearest dock; if it is close enough, connect;
-			var newBlock = null
-			var newConnection = null
+			// Find the nearest dock; if it is close
+			// enough, connect;
+			var newBlock = null;
+			var newConnection = null;
 			var min = 400;
 			var blkType = blockList[thisBlock].docks[0][2]
 			for (b = 0; b < blockList.length; b++) {
@@ -370,7 +463,7 @@ define(function (require) {
 				}
 			    }
 			    blockList[newBlock].connections[newConnection] = thisBlock;
-			    loopCounter = 0
+			    loopCounter = 0;
 			    adjustDocks(newBlock);
 			}
 			// (3) Recheck if it inside of a expandable block
@@ -387,7 +480,7 @@ define(function (require) {
 			    }
 			}
 		    }
-		    target.scaleX = target.scaleY = target.scale;
+		    unhighlight();
 		    activeBlock = null;
 		    update = true;
 		}
@@ -400,15 +493,15 @@ define(function (require) {
 
 	function moveExtraParts(blk, dx, dy) {
 	    // Expandable blocks have extra parts that need attention.
-	    if (blockList[blk].filler_bitmaps == undefined) {
+	    if (blockList[blk].fillerBitmaps == undefined) {
 		return;  // still in init stage
 	    }
-	    for (var i = 0; i < blockList[blk].filler_bitmaps.length; i++) {
-		blockList[blk].filler_bitmaps[i].x += dx;
-		blockList[blk].filler_bitmaps[i].y += dy;
+	    for (var i = 0; i < blockList[blk].fillerBitmaps.length; i++) {
+		blockList[blk].fillerBitmaps[i].x += dx;
+		blockList[blk].fillerBitmaps[i].y += dy;
 	    }
-	    blockList[blk].bottom_bitmap.x += dx;
-	    blockList[blk].bottom_bitmap.y += dy;
+	    blockList[blk].bottomBitmap.x += dx;
+	    blockList[blk].bottomBitmap.y += dy;
 	}
 
 	function testConnectionType(type1, type2) {
@@ -441,8 +534,6 @@ define(function (require) {
 	}
 
         function handleTurtleLoad(event) {
-	    // TODO: use rotation attribute of bitmap
-
 	    // Load the turtle
             var image = event.target;
             var imgW = image.width;
@@ -461,14 +552,14 @@ define(function (require) {
 
             // Create a turtle
             bitmap = new createjs.Bitmap(image);
-	    turtle_bitmap = bitmap;
+	    turtleBitmap = bitmap;
             container.addChild(bitmap);
 
             bitmap.x = turtleX2screenX(turtleX);
             bitmap.y = invertY(turtleY);
             bitmap.regX = imgW / 2 | 0;
             bitmap.regY = imgH / 2 | 0;
-            bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1
+            bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1;
             bitmap.name = 'bmp_turtle';
 
             bitmap.cursor = 'pointer';
@@ -478,7 +569,7 @@ define(function (require) {
 
             // Wrapper function to provide scope for the event handlers:
             (function (target) {
-		var moved = false
+		var moved = false;
 		bitmap.addEventListener('click', handleClick);
 		bitmap.addEventListener('mousedown', handleMouseDown);
 		bitmap.addEventListener('mouseover', handleMouseOver);
@@ -517,8 +608,8 @@ define(function (require) {
 
 		function handleMouseOut(event) {
                     target.scaleX = target.scaleY = target.scale;
-		    turtle_bitmap.x = target.x;
-		    turtle_bitmap.y = target.y;
+		    turtleBitmap.x = target.x;
+		    turtleBitmap.y = target.y;
                     update = true;
                 }
             })(bitmap);
@@ -539,14 +630,74 @@ define(function (require) {
 		oy = oldPt.y;
 		ny = y;
 	    }
-            drawingCanvas.graphics.setStrokeStyle(
-		stroke, 'round', 'round'
-	    ).beginStroke(color).moveTo(
-		ox, oy
-	    ).curveTo(ox, oy, nx, ny);
+	    if (!filling) {
+            	drawingCanvas.graphics.beginStroke(color);
+		drawingCanvas.graphics.setStrokeStyle(stroke, 'round', 'round');
+		drawingCanvas.graphics.moveTo(ox, oy);
+	    }
+	    if (penState) {
+		drawingCanvas.graphics.lineTo(nx, ny);
+	    } else {
+		drawingCanvas.graphics.moveTo(nx, ny);
+	    }
 	    oldPt.x = x;
             oldPt.y = y;
 	}
+
+        function handleCartesianGridLoad(event) {
+	    // Load the coordinate grid
+            var image = event.target;
+            var imgW = image.width;
+            var imgH = image.height;
+            var bitmap;
+            var container = new createjs.Container();
+            stage.addChild(container);
+
+            bitmap = new createjs.Bitmap(image);
+	    cartesianBitmap = bitmap;
+            container.addChild(bitmap);
+
+	    // FIXME: text is broken
+	    var text = new createjs.Text("Cartesian", "20px Arial", "#ff7700"); text.x = 100; text.textBaseline = "alphabetic";
+	    container.addChild(text);
+	    // text.visible = true;
+	    text.visible = false;
+	    text.x = 100;
+	    text.y = 100;
+            text.scaleX = text.scaleY = text.scale = 1;
+
+            bitmap.x = 0;
+            bitmap.y = 0;
+            bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1;
+            bitmap.name = 'bmp_cartesian';
+
+            document.getElementById('loader').className = '';
+            createjs.Ticker.addEventListener('tick', tick);
+	    bitmap.visible = false;
+        }
+
+        function handlePolarGridLoad(event) {
+	    // Load the coordinate grid
+            var image = event.target;
+            var imgW = image.width;
+            var imgH = image.height;
+            var bitmap;
+            var container = new createjs.Container();
+            stage.addChild(container);
+
+            bitmap = new createjs.Bitmap(image);
+	    polarBitmap = bitmap;
+            container.addChild(bitmap);
+
+            bitmap.x = 0;
+            bitmap.y = 0;
+            bitmap.scaleX = bitmap.scaleY = bitmap.scale = 1;
+            bitmap.name = 'bmp_polar';
+
+            document.getElementById('loader').className = '';
+            createjs.Ticker.addEventListener('tick', tick);
+	    bitmap.visible = false;
+        }
 
         function adjustBlockPositions() {
 	    // Adjust the docking postions of all blocks in the drag group
@@ -554,7 +705,7 @@ define(function (require) {
 		return;
 	    }
 
-	    loopCounter = 0
+	    loopCounter = 0;
 	    adjustDocks(dragGroup[0])
 	}
 
@@ -582,21 +733,21 @@ define(function (require) {
 	    // (2) adjust the clamp size to match.
 	    var yoff = blockList[blk].protoblock.yoff;
 	    var loff = blockList[blk].protoblock.loff;
-	    var j = blockList[blk].filler_bitmaps.length;
-	    if (size < blockList[blk].filler_bitmaps.length + 1) {
+	    var j = blockList[blk].fillerBitmaps.length;
+	    if (size < blockList[blk].fillerBitmaps.length + 1) {
 		var n = j - size + 1;  // one slot built in
 		for (var i = 0; i < n; i++) {
 		    removeFiller(blk);
 		    blockList[blk].docks.last()[1] -= loff;
 		}
-                j = blockList[blk].filler_bitmaps.length;
+                j = blockList[blk].fillerBitmaps.length;
 		var o = yoff + j * loff;
-		blockList[blk].bottom_bitmap.y = blockList[blk].bitmap.y + o;
+		blockList[blk].bottomBitmap.y = blockList[blk].bitmap.y + o;
 		if (blockList[blk].connections.last() != null) {
 		    adjustDocks(blk);
 		}
                 update = true;
-	    } else if (size > blockList[blk].filler_bitmaps.length) {
+	    } else if (size > blockList[blk].fillerBitmaps.length) {
 		var n = size - j - 1;  // one slot built in
 		for (var i = 0; i < n; i++) {
 		    var c = i + j;
@@ -604,9 +755,9 @@ define(function (require) {
 		    addFiller(blk, yoff + c * loff, c);
 		    blockList[blk].docks.last()[1] += loff;
 		}
-                j = blockList[blk].filler_bitmaps.length;
+                j = blockList[blk].fillerBitmaps.length;
 		var o = yoff + j * loff;
-		blockList[blk].bottom_bitmap.y = blockList[blk].bitmap.y + o;
+		blockList[blk].bottomBitmap.y = blockList[blk].bitmap.y + o;
 		if (blockList[blk].connections.last() != null) {
 		    adjustDocks(blk);
 		}
@@ -624,10 +775,10 @@ define(function (require) {
 	}
 
 	function removeFiller(blk) {
-	    var filler_bitmap = blockList[blk].filler_bitmaps.pop();
-	    blockList[blk].myContainer.removeChild(filler_bitmap);
-	    if (findBitmap(filler_bitmap.name) == null) {
-		bitmapCache.push(filler_bitmap);
+	    var fillerBitmap = blockList[blk].fillerBitmaps.pop();
+	    blockList[blk].myContainer.removeChild(fillerBitmap);
+	    if (findBitmap(fillerBitmap.name) == null) {
+		bitmapCache.push(fillerBitmap);
 	    }
 	    update = true;
 	}
@@ -649,7 +800,7 @@ define(function (require) {
 	    } else {
 		var bitmap = bitmapCache[bi];
 	    }
-	    blockList[blk].filler_bitmaps.push(bitmap);
+	    blockList[blk].fillerBitmaps.push(bitmap);
 	    blockList[blk].myContainer.addChild(bitmap);
 	    bitmap.x = blockList[blk].bitmap.x;
 	    bitmap.y = blockList[blk].bitmap.y + offset;
@@ -896,6 +1047,7 @@ define(function (require) {
 				myBlock.protoblock.getBottomSvgPath();
 			}
 		    }
+		    update = true;
 		}
 	    }
 	}
@@ -918,7 +1070,7 @@ define(function (require) {
 	    if (isExpandableBlock(blk)) {
 		moveExtraParts(blk, dx, dy);
 	    }
-	    adjustLabelPosition(canvas, blk, x, y);
+	    adjustLabelPosition(blk, x, y);
 	}
 
         function moveBlockRelative(blk, dx, dy) {
@@ -935,7 +1087,93 @@ define(function (require) {
 	    if (isExpandableBlock(blk)) {
 		moveExtraParts(blk, dx, dy);
 	    }
-	    adjustLabelPosition(canvas, blk, blockList[blk].x, blockList[blk].y);
+	    adjustLabelPosition(blk, blockList[blk].x, blockList[blk].y);
+	}
+
+	// The modifiable labels are stored in the DOM with a
+	// unique id for each block.  For the moment, we only have
+	// labels for number and text blocks.
+	function updateBlockLabels() {
+	    var html = ''
+	    var text = ''
+	    var value = ''
+	    for (var blk = 0; blk < blockList.length; blk++) {
+		var myBlock = blockList[blk];
+		if (myBlock.name == 'number') {
+		    if (myBlock.label == null) {
+			if (myBlock.value == null) {
+			    myBlock.value = 100;
+			}
+			value = myBlock.value.toString();
+		    } else {
+			value = myBlock.label.value;
+		    }
+		    text = '<textarea id="' + getBlockId(blk) +
+			'" style="position: absolute; ' + 
+			'-webkit-user-select: text;" ' +
+			'class="number", ' +
+			'cols="6", rows="1", maxlength="6">' +
+			value + '</textarea>'
+		} else if (myBlock.name == 'text') {
+		    if (myBlock.label == null) {
+			if (myBlock.value == null) {
+			    myBlock.value = 'text';
+			}
+			value = myBlock.value;
+		    } else {
+			value = myBlock.label.value;
+		    }
+		    text = '<textarea id="' + getBlockId(blk) +
+			'" style="position: absolute; ' + 
+			'-webkit-user-select: text;" ' +
+			'class="text", ' +
+			'cols="6", rows="1", maxlength="6">' +
+			value + '</textarea>'
+		} else {
+		    text = ''
+		}
+		html = html + text
+	    }
+	    labelElem.innerHTML = html;
+
+	    // Then create a list of the label elements
+	    for (var blk = 0; blk < blockList.length; blk++) {
+		var myBlock = blockList[blk];
+		if (myBlock.bitmap == null) {
+		    var x = myBlock.x
+		    var y = myBlock.y
+		} else {
+		    var x = myBlock.bitmap.x
+		    var y = myBlock.bitmap.y
+		}
+		if (isValueBlock(blk)) {
+		    myBlock.label = document.getElementById(getBlockId(blk));
+		    myBlock.label.addEventListener(
+			'change', function() {labelChanged();});
+		    adjustLabelPosition(blk, x, y);
+		} else {
+		    myBlock.label = null;
+		}
+	    }
+	}
+
+	function adjustLabelPosition(blk, x, y) {
+	    // Move the label when the block moves.
+	    if (blockList[blk].label == null) {
+		return;
+	    }
+	    if (blockList[blk].protoblock.name == 'number') {
+		blockList[blk].label.style.left = Math.round(
+		    x + canvas.offsetLeft + 30) + 'px';
+	    } else if (blockList[blk].protoblock.name == 'text') {
+		blockList[blk].label.style.left = Math.round(
+		    x + canvas.offsetLeft + 30) + 'px';
+	    } else {
+		blockList[blk].label.style.left = Math.round(
+		    x + canvas.offsetLeft + 10) + 'px';
+	    }
+	    blockList[blk].label.style.top = Math.round(
+		y + canvas.offsetTop + 5) + 'px';
 	}
 
         function tick(event) {
@@ -968,111 +1206,222 @@ define(function (require) {
 	    updatePalettes();
 	}
 
-        function loadBlocks() {
-	    // This is temporary code for testing.
+        function loadBlocks(blockObjs) {
+	    // Append to the current set of blocks.
+	    var adjustTheseDocks = [];
+	    var blockOffset = blockList.length;
 
-	    // Add the blocks
-	    newBlock(startBlock);
-	    blockList[0].x = 400;
-	    blockList[0].y = 50;
-	    blockList[0].connections = [null, 1, null];
-
-	    newBlock(clearBlock);
-	    blockList[1].connections = [0, 2];
-
-	    newBlock(storeinBlock);
-	    blockList[2].connections = [1, 3, 4, 5];
-	    newBlock(textBlock);
-	    blockList[3].connections = [2];
-	    blockList[3].value = 'size';
-	    newBlock(numberBlock);
-	    blockList[4].value = 100;
-	    blockList[4].connections = [2];
-
-	    newBlock(repeatBlock);
-	    blockList[5].connections = [2, 6, 7, null];
-	    newBlock(numberBlock);
-	    blockList[6].value = 8;
-	    blockList[6].connections = [5];
-
-	    newBlock(runBlock);
-	    blockList[7].connections = [5, 8, 9];
-	    newBlock(textBlock);
-	    blockList[8].connections = [7];
-	    blockList[8].value = 'square';
-
-	    newBlock(rightBlock);
-	    blockList[9].connections = [7, 10, null];
-	    newBlock(numberBlock);
-	    blockList[10].value = 45;
-	    blockList[10].connections = [9];
-
-	    newBlock(actionBlock);
-	    blockList[11].connections = [null, 12, 13, null];
-	    blockList[11].x = 25;
-	    blockList[11].y = 50;
-	    newBlock(textBlock);
-	    blockList[12].connections = [11];
-	    blockList[12].value = 'square';
-
-	    newBlock(repeatBlock);
-	    blockList[13].connections = [11, 14, 15, null];
-	    newBlock(numberBlock);
-	    blockList[14].value = 4;
-	    blockList[14].connections = [13];
-
-	    newBlock(forwardBlock);
-	    blockList[15].connections = [13, 16, 18];
-	    newBlock(boxBlock);
-	    blockList[16].connections = [15, 17];
-	    newBlock(textBlock);
-	    blockList[17].connections = [16];
-	    blockList[17].value = 'size';
-
-	    newBlock(rightBlock);
-	    blockList[18].connections = [15, 19, null];
-	    newBlock(numberBlock);
-	    blockList[19].value = 90;
-	    blockList[19].connections = [18];
-
-	    newBlock(setcolorBlock);
-	    blockList[20].connections = [null, 21, null];
-	    blockList[20].x = 25;
-	    blockList[20].y = 350;
-	    newBlock(numberBlock);
-	    blockList[21].value = 70;
-	    blockList[21].connections = [20];
-
-	    newBlock(colorBlock);
-	    blockList[22].connections = [null];
-	    blockList[22].x = 200;
-	    blockList[22].y = 300;
-
-	    newBlock(plusBlock);
-	    blockList[23].connections = [null, 24, 25];
-	    blockList[23].x = 300;
-	    blockList[23].y = 300;
-	    newBlock(numberBlock);
-	    blockList[24].value = 100;
-	    blockList[24].connections = [23];
-	    newBlock(numberBlock);
-	    blockList[25].value = 100;
-	    blockList[25].connections = [23];
-
+	    for(var b = 0; b < blockObjs.length; b++) {
+		var thisBlock = blockOffset + b;
+		var blkData = blockObjs[b];
+		if (typeof(blkData[1]) == 'string') {
+		    var name = blkData[1];
+		    var value = null;
+		} else {
+		    var name = blkData[1][0];
+		    var value = blkData[1][1];
+		}
+		console.log(thisBlock + ' ' + name + ' ' + value);
+		switch(name) {
+		case 'start':
+		    newBlock(startBlock);
+		    blockList[thisBlock].connections.push(null);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    blockList[thisBlock].connections.push(null);
+		    break;
+		case 'do':
+		case 'stack':
+		    newBlock(doBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'storein':
+		    newBlock(storeinBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    pushConnection(blkData[4][3], blockOffset, thisBlock);
+		    break;
+		case 'box':
+		    newBlock(boxBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'action':
+		case 'hat':
+		    newBlock(actionBlock);
+		    blockList[thisBlock].connections.push(null);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    blockList[thisBlock].connections.push(null);
+		    break;
+                case 'repeat':
+		    newBlock(repeatBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    pushConnection(blkData[4][3], blockOffset, thisBlock);
+		    break;
+		case 'clear':
+		case 'clean':
+		    newBlock(clearBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'forward':
+		    newBlock(forwardBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'back':
+		    newBlock(backBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'left':
+		    newBlock(leftBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'right':
+		    newBlock(rightBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'plus':
+		case 'plus2':
+		    newBlock(plusBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'minus':
+		case 'minus2':
+		    newBlock(minusBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'color':
+		    newBlock(colorBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    break;
+		case 'setcolor':
+		    newBlock(setcolorBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'pensize':
+		    newBlock(pensizeBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    break;
+		case 'setpensize':
+		    newBlock(setpensizeBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    pushConnection(blkData[4][2], blockOffset, thisBlock);
+		    break;
+		case 'penup':
+		    newBlock(penupBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'pendown':
+		    newBlock(pendownBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'startfill':
+		case 'beginfill':
+		    newBlock(startfillBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'stopfill':
+		case 'endfill':
+		    newBlock(endfillBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    pushConnection(blkData[4][1], blockOffset, thisBlock);
+		    break;
+		case 'number':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = value;
+		    break;
+		case 'text':
+		case 'string':
+		    newBlock(textBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = value;
+		    break;
+		case 'red':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = 0;
+		    break;
+		case 'orange':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = 10;
+		    break;
+		case 'yellow':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = 20;
+		    break;
+		case 'green':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = 40;
+		    break;
+		case 'blue':
+		    newBlock(numberBlock);
+		    pushConnection(blkData[4][0], blockOffset, thisBlock);
+		    blockList[thisBlock].value = 70;
+		    break;
+		default:
+		    console.log('No factory for ' + name);
+                    break;
+		}
+		if (thisBlock == blockList.length - 1) {
+		    if (blockList[thisBlock].connections[0] == null) {
+			blockList[thisBlock].x = blkData[2];
+			blockList[thisBlock].y = blkData[3];
+			adjustTheseDocks.push(thisBlock);
+		    }
+		}
+	    }
+	    for (var blk = 0; blk < blockList.length; blk++) {
+		console.log(blk + ' ' + blockList[blk].name + ' ' + blockList[blk].connections + ' ' + blockList[blk].value);
+	    }
 	    updateBlockImages();
 	    updateBlockLabels();
-	    // where to put this?
-	    updatePalettes();
+	    for (var blk = 0; blk < adjustTheseDocks.length; blk++) {
+		adjustDocks(adjustTheseDocks[blk]);
+	    }
+	    // expandClamps();
+	    update = true;
         }
 
-        function runLogoCommands() {
+        function pushConnection(connection, blockOffset, blk) {
+	    if (connection == null) {
+		    blockList[blk].connections.push(null);
+	    } else {
+		connection += blockOffset;
+		blockList[blk].connections.push(connection);
+	    }
+	}
+
+        function runLogoCommands(startHere) {
 	    // We run the logo commands here.
 	    var d = new Date();
 	    time = d.getTime();
-
-	    // Where to put this???
-	    // expandClamps();
-	    // update = true;
 
 	    // First we need to reconcile the values in all the value blocks
 	    // with their associated textareas.
@@ -1103,7 +1452,13 @@ define(function (require) {
 	    }
 
 	    // (2) Execute the stack.
-	    if (startBlock != null) {
+	    if (startHere != null) {
+		runQueue = [];
+		countQueue = [];
+		runFromBlock(startHere);
+	    } else if (startBlock != null) {
+		runQueue = [];
+		countQueue = [];
 		runFromBlock(startBlock);
 	    } else {
 		for (var blk = 0; blk < stackList.length; blk++) {
@@ -1118,24 +1473,12 @@ define(function (require) {
         }
 
 	function runFromBlock(blk) { 
-	    // Highlight current block by scaling
-	    if (turtle_delay == null) {
-		runFromBlockNow(blk);
-	    } else {
-		if (blk == null) {
-		    activity.showAlert('WARNING',
-				       'trying to run null block', null,
-				       function() {});
-		    return;
-		}
-		console.log('running ' + blk + ': ' + blockList[blk].name)
-		blockList[blk].bitmap.scaleX = 1.2;
-		blockList[blk].bitmap.scaleY = 1.2;
-		blockList[blk].bitmap.scale = 1.2;
-		runFromBlockNow(blk);
-		// setTimeout(function(){runFromBlockNow(blk);}, turtle_delay); 
+	    if (blk == null) {
+		return;
 	    }
-	} 
+	    console.log('running ' + blockList[blk].name);
+	    setTimeout(function(){runFromBlockNow(blk);}, turtle_delay); 
+	}
 
         function runFromBlockNow(blk) {
 	    // Run a stack of blocks, beginning with blk.
@@ -1148,25 +1491,51 @@ define(function (require) {
 	    }
 
 	    // (2) Run function associated with the block;
+
+	    // All flow blocks have a nextflow, but it can be null
+	    // (end of flow)
+	    var nextflow = blockList[blk].connections.last();
+	    if (nextflow != null) {
+		runQueue.push(nextflow);
+		countQueue.push(1);
+	    }
+	    // Some flow blocks have childflows, e.g., repeat
+	    var childflow = null;
+
+	    if (turtle_delay != null) {
+		highlight(blk);
+	    }
+
 	    switch (blockList[blk].name) {
 	    case 'start':
  		if (args.length == 1) {
-		    doStart(args[0]);
+		    childflow = args[0];
+		    childflowCount = 1;
 		}
 		break;
-	    case 'run':
+	    case 'do':
  		if (args.length == 1) {
-		    doRun(args[0]);
+		    for (i = 0; i < actionList.length; i++) {
+			if (actionList[i][0] == args[0]) {
+			    childflow = actionList[i][1];
+			    childflowCount = 1;
+			    break;
+			}
+		    }
 		}
 		break;
 	    case 'repeat':
  		if (args.length == 2) {
-		    doRepeat(args[0], args[1]);
+		    childflow = args[1];
+		    childflowCount = args[0];
 		}
 		break;
 	    case 'if':
  		if (args.length == 2) {
-		    doIf(args[0], args[1]);
+		    if (args[0]) {
+			childflow = args[1];
+			childflowCount = 1;
+		    }
 		}
 		break;
 	    case 'storein':
@@ -1202,27 +1571,57 @@ define(function (require) {
 		    doSetColor(args[0]);
          	}
 		break;
+            case 'setpensize':
+		if (args.length == 1) {
+		    doSetPensize(args[0]);
+         	}
+		break;
+            case 'beginfill':
+		doStartFill();
+		break;
+            case 'endfill':
+		doEndFill();
+		break;
+            case 'penup':
+		doPenUp();
+		break;
+            case 'pendown':
+		doPenDown();
+		break;
 	    }
 
-	    if (turtle_delay != null) {
-		// Unhighlight current block by rescaling
-		blockList[blk].bitmap.scaleX = 1;
-		blockList[blk].bitmap.scaleY = 1;
-		blockList[blk].bitmap.scale = 1;
+	    // (3) Queue block below this block.
+
+	    // If there is a childflow, queue it.
+	    if (childflow != null) {
+		runQueue.push(childflow);
+		countQueue.push(childflowCount);
 	    }
 
-	    // (3) Run block below this block, if any;
-	    var nextBlock = blockList[blk].connections.last();
-	    if (nextBlock != null) {
-		if (!isArgBlock(nextBlock)) {
-		    runFromBlock(nextBlock);
+	    var nextBlock = null;
+	    // Run the last flow in the queue.
+	    if (runQueue.length > 0) {
+		nextBlock = runQueue.last();
+		if(countQueue.last() == 1) {
+		    // Finished child so pop it off the queue.
+		    runQueue.pop();
+		    countQueue.pop();
+		} else {
+		    // Decrement the counter.
+		    count = countQueue.pop();
+		    count -= 1;
+		    countQueue.push(count);
 		}
+	    }
+	    if (nextBlock != null) {
+		runFromBlock(nextBlock);
+	    } else {
+		setTimeout(function(){unhighlight();}, turtle_delay);
 	    }
 	}
 
 	function parseArg(blk) {
 	    // Retrieve the value of a block.
-	    // TODO: recurse while applying some operator
 	    if (blk == null) {
 		activity.showAlert('WARNING',
 				   'missing argument', null,
@@ -1256,8 +1655,18 @@ define(function (require) {
 		    b = parseArg(cblk2);
 		    blockList[blk].value = doPlus(a, b);
 		    break;
+		case 'minus':
+		    cblk1 = blockList[blk].connections[1];
+		    cblk2 = blockList[blk].connections[2];
+		    a = parseArg(cblk1);
+		    b = parseArg(cblk2);
+		    blockList[blk].value = doMinus(a, b);
+		    break;
 		case 'color':
 		    blockList[blk].value = turtleColor;
+		    break;
+		case 'pensize':
+		    blockList[blk].value = turtleStroke;
 		    break;
 		case 'mouse x':
 		    blockList[blk].value = stageX;
@@ -1267,7 +1676,7 @@ define(function (require) {
 		    break;
 		case 'time':
 		    var d = new Date();
-		    blockList[blk].value = (time - d.getTime()) / 1000;
+		    blockList[blk].value = (d.getTime() - time) / 1000;
 		    break;
 		}
 		return blockList[blk].value;
@@ -1276,48 +1685,105 @@ define(function (require) {
 	    }
 	}
 
+	function unhighlight() {
+	    if (highlightedBlock != null) {
+		var myBlock = blockList[highlightedBlock];
+		myBlock.bitmap.scaleX = 1;
+		myBlock.bitmap.scaleY = 1;
+		myBlock.bitmap.scale = 1;
+		if (isExpandableBlock(highlightedBlock)) {
+		    for (var i = 0; i < myBlock.fillerBitmaps.length; i++) {
+			myBlock.fillerBitmaps[i].scaleX = 1;
+			myBlock.fillerBitmaps[i].scaleY = 1;
+			myBlock.fillerBitmaps[i].scale = 1;
+		    }
+		    if (myBlock.bottomBitmap != null) {
+			myBlock.bottomBitmap.scaleX = 1;
+			myBlock.bottomBitmap.scaleY = 1;
+			myBlock.bottomBitmap.scale = 1;
+		    }
+		}
+		update = true;
+	    }
+	    highlightedBlock = null;
+	}
+
+	function highlight(blk) {
+	    if (blk != null) {
+		unhighlight();
+		var myBlock = blockList[blk];
+		myBlock.bitmap.scaleX = 1.2;
+		myBlock.bitmap.scaleY = 1.2;
+		myBlock.bitmap.scale = 1.2;
+		if (isExpandableBlock(blk)) {
+		    for (var i = 0; i < myBlock.fillerBitmaps.length; i++) {
+			myBlock.fillerBitmaps[i].scaleX = 1.2;
+			myBlock.fillerBitmaps[i].scaleY = 1.2;
+			myBlock.fillerBitmaps[i].scale = 1.2;
+		    }
+		    if (myBlock.bottomBitmap != null) {
+			myBlock.bottomBitmap.scaleX = 1.2;
+			myBlock.bottomBitmap.scaleY = 1.2;
+			myBlock.bottomBitmap.scale = 1.2;
+		    }
+		}
+
+		highlightedBlock = blk;
+		update = true;
+	    }
+	}
+
 	function hideBlocks() {
 	    // Hide all the blocks.
 	    for (blk = 0; blk < blockList.length; blk++) {
-		blockList[blk].bitmap.visible = false;
+		myBlock = blockList[blk];
+		myBlock.bitmap.visible = false;
+		if (isExpandableBlock(blk)) {
+		    for (var i = 0; i < myBlock.fillerBitmaps.length; i++) {
+			myBlock.fillerBitmaps[i] = false;
+		    }
+		    myBlock.bottomBitmap.visible = false;
+		}
 	    }
+	    update = true;
 	}
 
 	function showBlocks() {
 	    // Show all the blocks.
 	    for (blk = 0; blk < blockList.length; blk++) {
-		blockList[blk].bitmap.visible = true;
+		myBlock = blockList[blk];
+		myBlock.bitmap.visible = true;
+		if (isExpandableBlock(blk)) {
+		    for (var i = 0; i < myBlock.fillerBitmaps.length; i++) {
+			myBlock.fillerBitmaps[i] = true;
+		    }
+		    myBlock.bottomBitmap.visible = true;
+		}
 	    }
+	    update = true;
+	}
+
+	function hideCartesian() {
+	    cartesianBitmap.visible = false;
+	    update = true;
+	}
+
+	function showCartesian() {
+	    cartesianBitmap.visible = true;
+	    update = true;
+	}
+
+	function hidePolar() {
+	    polarBitmap.visible = false;
+	    update = true;
+	}
+
+	function showPolar() {
+	    polarBitmap.visible = true;
+	    update = true;
 	}
 
 	// Logo functions
-	function doStart(blk) {
-	    console.log('doStart: calling runFromBlock(' + blk + ')');
-	    runFromBlock(blk);
-	}
-
-	function doRun(name) {
-	    // run the stack with name == name
-	    for (i = 0; i < actionList.length; i++) {
-		if (actionList[i][0] == name) {
-		    runFromBlock(actionList[i][1]);
-		    break;
-		}
-	    }
-	}
-
-        function doRepeat(count, blk) {
-	    for (var i = 0; i < count; i++) {
-		runFromBlock(blk);
-	    }
-	}
-
-        function doIf(bool, blk) {
-	    if (bool) {
-		runFromBlock(blk);
-	    }
-	}
-
         function doStorein(name, value) {
 	    if (name != null) {
 		i = findBox(name);
@@ -1334,52 +1800,86 @@ define(function (require) {
 	    return Number(a) + Number(b);
 	}
 
+	function doMinus(a, b) {
+	    return Number(a) - Number(b);
+	}
+
 	// Turtle functions
         function doForward(steps) {
 	    // Move forward.
             update = true;
 	    // old turtle point
-            oldPt = new createjs.Point(screenX2turtleX(turtle_bitmap.x),
-					   invertY(turtle_bitmap.y));
-            color = colorTable[turtleColor];
-            stroke = turtleStroke;
+            oldPt = new createjs.Point(screenX2turtleX(turtleBitmap.x),
+					   invertY(turtleBitmap.y));
 	    // new turtle point
 	    var rad = turtleOrientation * Math.PI / 180.0;
 	    var newPt = new createjs.Point(
 		oldPt.x + Number(steps) * Math.sin(rad),
 		oldPt.y + Number(steps) * Math.cos(rad))
+            color = colorTable[turtleColor];
+            stroke = turtleStroke;
 	    moveTurtle(newPt.x, newPt.y, true);
-	    turtle_bitmap.x = turtleX2screenX(newPt.x);
-	    turtle_bitmap.y = invertY(newPt.y);
+	    turtleBitmap.x = turtleX2screenX(newPt.x);
+	    turtleBitmap.y = invertY(newPt.y);
 	}
 
 	function doRight(degrees) {
 	    // Turn right and display corresponding turtle graphic.
 	    turtleOrientation += Number(degrees);
 	    turtleOrientation %= 360;
-	    turtle_bitmap.rotation = turtleOrientation;
+	    turtleBitmap.rotation = turtleOrientation;
             update = true;
 	}
 
 	function doSetColor(color) {
 	    turtleColor = Math.round(color);
 	    turtleColor %= 100;
+	    if (turtleColor < 0) {
+		turtleColor += 100;
+	    }
+	}
+
+	function doSetPensize(size) {
+	    turtleStroke = size;
+	}
+
+        function doPenUp() {
+	    penState = false;
+	}
+
+	function doPenDown() {
+	    penState = true;
+	}
+
+        function doStartFill() {
+	    /// start tracking points here
+	    drawingCanvas.graphics.beginFill(color);
+	    filling = true;
+	}
+
+	function doEndFill() {
+	    /// redraw the points with fill enabled
+	    drawingCanvas.graphics.endFill();
+	    filling = false;
 	}
 
 	function doClear() {
-	    // Clear all graphics and reset turtle.
+	    // Reset turtle.
             update = true;
-            drawingCanvas.graphics.clear();
 	    turtleX = 0;
 	    turtleY = 0;
 	    turtleOrientation = 0.0;
 	    turtleColor = 0;
 	    turtleStroke = 5;
-	    turtle_bitmap.x = turtleX2screenX(turtleX);
-	    turtle_bitmap.y = invertY(turtleY);
-	    turtle_bitmap.rotation = 0;
-	    // Also clear all the boxes
+	    turtleBitmap.x = turtleX2screenX(turtleX);
+	    turtleBitmap.y = invertY(turtleY);
+	    turtleBitmap.rotation = 0;
+	    // Clear all the boxes.
 	    boxList = [];
+	    // Clear all graphics.
+            color = colorTable[turtleColor];
+            stroke = turtleStroke;
+            drawingCanvas.graphics.clear();
 	}
 
 	function findBox(name) {
@@ -1402,6 +1902,39 @@ define(function (require) {
 
         function invertY(y) {
             return canvas.height / 2.0 - y;
+	}
+
+	function doOpen() {
+	    var fileChooser = document.getElementById("myOpenFile");
+	    fileChooser.addEventListener("change", function(event) {
+
+		// Read file here.
+		console.log('fileChooser ' + this.value);
+		var reader = new FileReader();
+
+		reader.onload = (function(theFile) {
+		    var rawData = reader.result;
+		    var cleanData = rawData.replace('\n', ' ');
+		    var obj = JSON.parse(cleanData);
+		    // console.log(obj);
+		    loadBlocks(obj);
+		});
+
+		reader.readAsText(fileChooser.files[0]);
+	    }, false);
+
+            fileChooser.focus();
+	    fileChooser.click();
+	}
+
+	function doSave() {
+	    var fileChooser = document.getElementById("mySaveFile");
+	    fileChooser.addEventListener("change", function(event) {
+		// Do something here.
+		console.log('fileChooser ' + this.value);
+	    }, false);
+            fileChooser.focus();
+	    fileChooser.click();
 	}
 
     });
