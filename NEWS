@@ -24,18 +24,50 @@
   * fill
   * load blocks
   * click on block to run
+  * arc
+  * setxy
+  * set heading
+  * x, y, heading
+  * lots-o-sample projects
+  * expanding arithmetic blocks
+  * expanding 2-arg blocks
+  * implement color model (Munsell)
+  * fix Munsell 2.5 tables
+  * set background color
+  * trash
+  * move labels to container
+  * fix repeat docking bug
+  * fix filler hide bug
+  * real block highlighting
+  * fix problem with cascading arithmetic operators
+  * trigger events on containers, not bitmaps
+  * multiple turtles (one for each start block)
+  * show text
+  * show image
+  * different colors for each turtle
+  * turtle shell (aka sprites)
+  * erase media (remove children)
+  * reset turtle skin on clear
+  * scale text, images, turtle shell
+  * center images on turtle
+  * fix turtle layering bug
+  * fix action name bug
+  * open file from window location
+  * major refactoring of code
+  * don't accept CR in numeric text area
+  * restore from trash
+  * add wait block
+  * save/restore session
+  * stop turtle
+  * first pass on a palette strategy
+  * save file to turtle.sugarlabs.org (when running from server) w/tch
 
 TODO:
-  * save blocks
+  * fix block/turtle/canvas layering
+  * use container caching
   * copy/paste
-  * user defined
-  * better compartmentalization of code
-  * expanding arithmetic blocks
-  * flesh out pen palette
-  * implement color model (Munsell?)
-  * sensors/media
-  * decide on a palette strategy
+  * user defined blocks
+  * better compartmentalization of block code
+  * sensors
   * implement more sophisticated blocks
-  * turtle skin
-  * multiple turtles (or only one start block)
   * keyboard short cuts
